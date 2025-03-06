@@ -21,7 +21,7 @@ public class Test {
         System.out.println(dto);
 
     }
-    static int insertMember (int member_id, String name, String phone_number, Date birth_date) {
+    public static int insertMember (int member_id, String name, String phone_number, Date birth_date) {
         Connection con = null;
         PreparedStatement pstmt = null;
         String insertSql = "insert into member values (?, ?, ?, ?); ";
@@ -45,7 +45,7 @@ public class Test {
         return ret;
     }
 
-    static int updateMember (int member_id, String name, String phone_number) {
+    public static int updateMember (int member_id, String name, String phone_number) {
         Connection con = null;
         PreparedStatement pstmt = null;
 
@@ -68,7 +68,7 @@ public class Test {
         return ret;
     }
 
-    static int deleteMember (int member_id) {
+    public static int deleteMember (int member_id) {
         Connection con = null;
         PreparedStatement pstmt = null;
 
@@ -89,7 +89,7 @@ public class Test {
 
         return ret;
     }
-    static List<MemberDto> listmember() {
+    public static List<MemberDto> listmember() {
         Connection con = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
@@ -121,7 +121,7 @@ public class Test {
         return list;
     }
 
-    static MemberDto detailMember(int member_id) {
+    public static MemberDto detailMember(int member_id) {
         Connection con = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
@@ -149,5 +149,97 @@ public class Test {
             DBManager.releaseConnection(pstmt, con);
         }
         return dto;
+    }
+
+    public static int sellPhone(int memberId, int modelId, int quantity) {
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        int ret = -1;
+        try {
+            con = DBManager.getConnection();
+
+            // 멤버십 등급과 할인율 조회
+            String membershipSql = "SELECT discount_rate FROM membership WHERE member_id = ?";
+            pstmt = con.prepareStatement(membershipSql);
+            pstmt.setInt(1, memberId);
+            rs = pstmt.executeQuery();
+            double discountRate = 0.0;
+            if (rs.next()) {
+                discountRate = rs.getDouble("discount_rate");
+            }
+
+            // 휴대폰 가격 조회
+            String priceSql = "SELECT price FROM model WHERE model_id = ?";
+            pstmt = con.prepareStatement(priceSql);
+            pstmt.setInt(1, modelId);
+            rs = pstmt.executeQuery();
+            double price = 0.0;
+            if (rs.next()) {
+                price = rs.getDouble("price");
+            }
+
+            // 할인 적용된 최종 가격 계산
+            double finalPrice = price * quantity * (1 - discountRate / 100);
+
+            // 판매 기록 추가
+            String salesSql = "INSERT INTO sales (member_id, model_id, final_price) VALUES (?, ?, ?)";
+            pstmt = con.prepareStatement(salesSql);
+            pstmt.setInt(1, memberId);
+            pstmt.setInt(2, modelId);
+            pstmt.setDouble(3, finalPrice);
+            ret = pstmt.executeUpdate();
+
+            // 재고 수량 업데이트
+            String stockSql = "UPDATE stock SET quantity = quantity - ? WHERE model_id = ?";
+            pstmt = con.prepareStatement(stockSql);
+            pstmt.setInt(1, quantity);
+            pstmt.setInt(2, modelId);
+            pstmt.executeUpdate();
+
+            // 출고 기록 추가
+            String logSql = "INSERT INTO inventory_log (model_id, change_quantity, change_type) VALUES (?, ?, 'OUT')";
+            pstmt = con.prepareStatement(logSql);
+            pstmt.setInt(1, modelId);
+            pstmt.setInt(2, quantity);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DBManager.releaseConnection(rs, pstmt, con);
+        }
+        return ret;
+    }
+
+    public static int addStock(int modelId, int quantity) {
+        Connection con = null;
+        PreparedStatement pstmt = null;
+
+        int ret = -1;
+        try {
+            con = DBManager.getConnection();
+
+            // 재고 수량 업데이트
+            String stockSql = "UPDATE stock SET quantity = quantity + ? WHERE model_id = ?";
+            pstmt = con.prepareStatement(stockSql);
+            pstmt.setInt(1, quantity);
+            pstmt.setInt(2, modelId);
+            ret = pstmt.executeUpdate();
+
+            // 입고 기록 추가
+            String logSql = "INSERT INTO inventory_log (model_id, change_quantity, change_type) VALUES (?, ?, 'IN')";
+            pstmt = con.prepareStatement(logSql);
+            pstmt.setInt(1, modelId);
+            pstmt.setInt(2, quantity);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DBManager.releaseConnection(pstmt, con);
+        }
+        return ret;
     }
 }
