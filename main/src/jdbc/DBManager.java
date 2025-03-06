@@ -15,9 +15,9 @@ public class DBManager {
         Connection con = null;
         try {
             con = DriverManager.getConnection(url, user, pwd);
-            System.out.println("✅ 데이터베이스 연결 성공!");
+            System.out.println("데이터베이스 연결 성공!");
         } catch (SQLException e) {
-            System.out.println("❌ 데이터베이스 연결 실패!");
+            System.out.println("데이터베이스 연결 실패!");
             e.printStackTrace();
         }
         return con;
@@ -31,7 +31,7 @@ public class DBManager {
         if (conn != null) {
             try {
                 conn.close();
-                System.out.println("✅ 연결 종료");
+                System.out.println("연결 종료");
             } catch (SQLException e) {
                 e.printStackTrace();
             }
